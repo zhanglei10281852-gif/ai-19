@@ -87,13 +87,12 @@ func scanJob(row scanner) (domain.OutboxJob, error) {
 }
 
 func (q *queries) CompleteJob(ctx context.Context, id string, now time.Time) error {
-	status := domain.JobSucceeded
-	_, err := q.q.ExecContext(ctx, `UPDATE outbox_jobs SET status = ?, locked_at = NULL,
-        updated_at = ? WHERE id = ?`, status, formatTime(now), id)
+	result, err := q.q.ExecContext(ctx, `UPDATE outbox_jobs SET status = 'succeeded', locked_at = NULL,
+        updated_at = ? WHERE id = ? AND status = 'running'`, formatTime(now), id)
 	if err != nil {
 		return translateError("complete outbox job", err)
 	}
-	return nil
+	return expectVersion(result, "complete outbox job")
 }
 
 func (q *queries) RetryJob(ctx context.Context, id string, availableAt time.Time, lastError string, dead bool) error {
